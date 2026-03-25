@@ -38,3 +38,4 @@ $$MGI = \text{round}( (RH - 55)^{1.28} \times C_{reg} \times C_{mat} \times \tex
 
 ---
 *本工具僅供建築物理研究與房屋巡檢輔助使用。*
+[📖 點此查看 Bio-Guard 16.5 深度技術手冊](./MANUAL.md)
