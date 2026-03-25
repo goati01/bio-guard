@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bio-Guard 16.5 | Master Diagnostic Pro</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/digidem/leaflet-side-by-side@gh-pages/leaflet-side-by-side.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root { --primary: #0f172a; --accent: #3b82f6; --danger: #ef4444; --warning: #f59e0b; --success: #10b981; --bg: #f8fafc; }
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 380px; background: white; padding: 25px; box-shadow: 4px 0 15px rgba(0,0,0,0.05); overflow-y: auto; z-index: 1000; flex-shrink: 0; }
+        #main-content { flex-grow: 1; position: relative; }
+        #map { height: 100%; width: 100%; background: #1a1a1a; }
+        .api-panel { background: #f1f5f9; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        #dashboard { position: absolute; top: 20px; right: 20px; width: 360px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 20px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); z-index: 1000; border: 1px solid rgba(255,255,255,0.3); max-height: 90vh; overflow-y: auto; }
+        .mgi-card { background: var(--primary); padding: 20px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px; }
+        .mgi-value { font-size: 3.5rem; font-weight: 900; display: block; line-height: 1; margin: 5px 0; }
+        .section-title { font-size: 0.9rem; font-weight: 700; color: var(--primary); margin: 20px 0 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; }
+        .input-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; margin-top: 5px; }
+        .btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+        .btn:disabled { background: #94a3b8; cursor: not-allowed; }
+        #ai-report { margin-top: 15px; padding: 20px; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 0.88rem; line-height: 1.7; display: none; color: #334155; }
+        .conn-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 900; margin-bottom: 10px; font-family: monospace; }
+        .report-sec { margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+        .report-title { color: var(--primary); font-weight: 800; font-size: 0.92rem; display: block; margin-bottom: 3px; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div style="margin-bottom: 15px;">
+        <select id="lang_select" onchange="changeLanguage()" style="background: var(--accent); color: white; border: none; font-weight: 800; padding: 5px; border-radius: 4px;">
+            <option value="zh">繁體中文 (Traditional Chinese)</option>
+            <option value="en">English (Professional)</option>
+        </select>
+    </div>
+
+    <h2 id="lbl-app-title" style="margin: 0 0 15px; font-size: 1.3rem; color: var(--primary);">Bio-Guard <span style="color:var(--accent)">16.5</span></h2>
+
+    <div class="api-panel">
+        <label id="lbl-cwa-key" style="font-size: 0.75rem; color: var(--primary); font-weight: 800;">氣象署API KEY (台灣)</label>
+        <input type="password" id="cwa_key" placeholder="CWA API Key" onchange="saveKeys()">
+        <label id="lbl-global-key" style="font-size: 0.7rem; color: #64748b; font-weight: 600; margin-top:10px; display:block;">OpenWeather Key (全球同步)</label>
+        <input type="password" id="global_key" placeholder="Global API Key" onchange="saveKeys()">
+        <label id="lbl-gemini-key" style="font-size: 0.7rem; color: #64748b; font-weight: 600; margin-top:10px; display:block;">Gemini API KEY (2026)</label>
+        <input type="password" id="gemini_key" placeholder="Google AI Key" onchange="saveKeys()">
+    </div>
+    
+    <div class="section-title" id="lbl-geo-log">📍 環境地理日誌</div>
+    <div id="station-info" style="background: #eff6ff; padding: 12px; border-radius: 10px; font-size: 0.75rem; color: #1e40af; font-family: monospace;">請點擊地圖鎖定座標</div>
+
+    <div class="section-title" id="lbl-sync-title">🌡️ 數據同步中心</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+        <button class="btn" id="btn-sync-cwa" style="background:#0f172a; color:white;" onclick="syncCwa()">🇹🇼 氣象署同步</button>
+        <button class="btn" id="btn-sync-global" style="background:#3b82f6; color:white;" onclick="syncGlobal()">🌐 全球自動同步</button>
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+        <div class="input-group" style="flex:1;"><label id="lbl-temp">溫度 (°C)</label><input type="number" id="temp" value="24.0" step="0.1" oninput="runDiagnosis()"></div>
+        <div class="input-group" style="flex:1;"><label id="lbl-rh">相對濕度 (%)</label><input type="number" id="rh" value="70" step="1" oninput="runDiagnosis()"></div>
+    </div>
+    <div class="input-group" style="margin-bottom:12px;"><label id="lbl-pm">孢子負荷 (PM2.5)</label><input type="number" id="pm" value="15" oninput="runDiagnosis()"></div>
+
+    <div class="section-title" id="lbl-space-title">🏘️ 區域物理參數校準</div>
+    <div class="input-group" style="margin-bottom:12px;"><label id="lbl-layer-select">分析圖層對焦</label><select id="layer_select" onchange="updateRightLayer()"></select></div>
+    <div class="input-group" style="margin-bottom:12px;"><label id="lbl-mat">材料敏感等級 (權重強化)</label><select id="mat_info" onchange="runDiagnosis()"></select></div>
+    <div class="input-group" style="margin-bottom:12px;"><label id="lbl-vent">空間物理循環狀態</label><select id="space_info" onchange="runDiagnosis()"></select></div>
+    <div class="input-group" style="margin-bottom:12px;"><label id="lbl-ndwi">地底毛細管水權重</label><select id="ndwi_val" onchange="runDiagnosis()"></select></div>
+
+    <div id="chart-container" style="height: 180px; margin-top:15px;"><canvas id="radarChart"></canvas></div>
+</div>
+
+<div id="main-content">
+    <div id="map"></div>
+    <div id="dashboard">
+        <div id="mgi-box" class="mgi-card">
+            <small id="lbl-mgi-title" style="opacity:0.8; font-weight:600">學術發霉指數 (MGI)</small>
+            <span id="mgi-value" class="mgi-value">--</span>
+            <div id="cost-box" style="font-size: 0.75rem; font-weight: 800; padding: 5px; border-radius: 6px; margin-top: 8px; background:rgba(255,255,255,0.2)">數據連動中...</div>
+        </div>
+        <button id="ai-btn" class="btn" style="background:var(--primary); color:white; margin-top: 5px; height: 50px;" onclick="handleAiDiagnosis()">🤖 執行大師級深度診斷</button>
+        <div id="ai-report"></div>
+    </div>
+</div>
+
+<script>
+    // --- 1. i18n 完整映射與提示詞 ---
+    const i18n = {
+        zh: {
+            cwa: "氣象署API KEY (台灣)", global: "OpenWeather Key (全球同步)", gemini: "Gemini API KEY (2026)",
+            geo: "📍 環境地理日誌", sync: "數據同步中心", btn_cwa: "🇹🇼 氣象署同步", btn_global: "🌐 全球自動同步",
+            temp: "溫度 (°C)", rh: "相對濕度 (%)", pm: "孢子負荷 (PM2.5)", space: "🏘️ 區域物理參數校準",
+            layer: "分析圖層對焦", vent: "空間物理循環狀態", ndwi: "地底毛細管水權重", mat: "材料敏感等級 (權重強化)",
+            mgi: "學術發霉指數 (MGI)", ai_btn: "🤖 執行大師級深度診斷", high_risk: "⚠️ 嚴重臨界風險", low_risk: "✅ 物理穩定環境",
+            handshake: "⏳ API 安全握手中...", conn_ok: "[CONNECTED: GEMINI 3]", conn_fail: "[LOCAL MASTER FALLBACK]",
+            sync_ok: "✅ 同步成功！", key_err: "❌ 金鑰失效", click_map: "請先點擊地圖鎖定座標",
+            enter_global_key: "請輸入 OpenWeather 全球 API Key",
+            layers: ["衛星實景 (查驗植被遮陰)", "地形陰影 (判定地氣排水)", "街道地圖 (查閱都市熱島)"],
+            spaces: ["地下室 / 密閉倉庫 (氣流停滯)", "單面採光公寓 (標準環境)", "南北通透住宅 (優良循環)"],
+            grounds: ["高風險區域 (鄰近水脈低窪)", "標準地質區域 (穩定都會)", "優質高台地脈 (乾燥地氣)"],
+            materials: ["極敏感 (皮革、壁紙、原木家具)", "敏感 (合板製品、加工木板)", "中度抗性 (混凝土、紅磚牆)", "高抗性 (磁磚、玻璃、金屬)"],
+            chart_labels: ['相對濕度', '地脈水分', '空間通風', '材料敏感', '物理風險'],
+            master_title: "🏠 大師級建築物理深度報告"
+        },
+        en: {
+            cwa: "CWA API KEY (Taiwan)", global: "Global Weather Key", gemini: "Gemini API Key (2026)",
+            geo: "📍 Geo-Environment Log", sync: "Data Sync Center", btn_cwa: "🇹🇼 CWA Sync", btn_global: "🌐 Global Sync",
+            temp: "Temp (°C)", rh: "Humidity (%)", pm: "PM2.5", space: "🏘️ Regional Calibration",
+            layer: "Analyze Layer", vent: "Ventilation Cycle", ndwi: "Ground Capillary", mat: "Material Sensitivity",
+            mgi: "Academic MGI", ai_btn: "🤖 Run Master Diagnosis", high_risk: "⚠️ Critical Risk", low_risk: "✅ Balanced Area",
+            handshake: "⏳ API Handshaking...", conn_ok: "[CONNECTED: GEMINI 3]", conn_fail: "[LOCAL FALLBACK]",
+            sync_ok: "✅ Sync Successful!", key_err: "❌ Invalid Key", click_map: "Click map first",
+            enter_global_key: "Please enter OpenWeather Global API Key",
+            layers: ["Satellite (Shade)", "Hillshade (Terrain)", "Topo (Urban)"],
+            spaces: ["Basement (Stagnant)", "Standard Apartment", "Cross-ventilation (Ideal)"],
+            grounds: ["High Risk (Water Vein)", "Standard (Urban)", "Premium (Highland)"],
+            materials: ["Very Sensitive (Leather, Wood)", "Sensitive (MDF, Paper)", "Medium (Concrete, Brick)", "Resistant (Tile, Metal)"],
+            chart_labels: ['Humidity', 'Ground', 'Ventilation', 'Material', 'MGI'],
+            master_title: "🏠 Master Physics Diagnosis Report"
+        }
+    };
+
+    let currentLang = 'zh', radarChart, marker, clickedCoords;
+    const TAIWAN_STATIONS = [{id:"466920",name:"台北",lat:25.037,lng:121.514},{id:"466880",name:"板橋",lat:24.997,lng:121.442},{id:"467570",name:"新竹",lat:24.803,lng:120.978},{id:"467490",name:"台中",lat:24.145,lng:120.684},{id:"467440",name:"高雄",lat:22.566,lng:120.315}];
+
+    function changeLanguage() {
+        currentLang = document.getElementById('lang_select').value;
+        const d = i18n[currentLang];
+        document.getElementById('lbl-cwa-key').innerText = d.cwa;
+        document.getElementById('lbl-global-key').innerText = d.global;
+        document.getElementById('lbl-gemini-key').innerText = d.gemini;
+        document.getElementById('lbl-geo-log').innerText = d.geo;
+        document.getElementById('lbl-sync-title').innerText = d.sync;
+        document.getElementById('btn-sync-cwa').innerText = d.btn_cwa;
+        document.getElementById('btn-sync-global').innerText = d.btn_global;
+        document.getElementById('lbl-temp').innerText = d.temp;
+        document.getElementById('lbl-rh').innerText = d.rh;
+        document.getElementById('lbl-pm').innerText = d.pm;
+        document.getElementById('lbl-space-title').innerText = d.space;
+        document.getElementById('lbl-layer-select').innerText = d.layer;
+        document.getElementById('lbl-mat').innerText = d.mat;
+        document.getElementById('lbl-vent').innerText = d.vent;
+        document.getElementById('lbl-ndwi').innerText = d.ndwi;
+        document.getElementById('lbl-mgi-title').innerText = d.mgi;
+        document.getElementById('ai-btn').innerText = d.ai_btn;
+        const updateSelect = (id, options, values) => {
+            const sel = document.getElementById(id); const cur = sel.value; sel.innerHTML = "";
+            options.forEach((opt, i) => { let o = document.createElement("option"); o.value = values[i]; o.text = opt; if(o.value === cur) o.selected = true; sel.add(o); });
+        };
+        updateSelect('layer_select', d.layers, ['satellite','hillshade','topo']);
+        updateSelect('mat_info', d.materials, ['1.6','1.25','0.75','0.3']);
+        updateSelect('space_info', d.spaces, ['1.5','1.2','0.9']);
+        updateSelect('ndwi_val', d.grounds, ['1.4','1.1','0.8']);
+        runDiagnosis();
+    }
+
+    var map = L.map('map', { zoomControl: false }).setView([24.8138, 120.9675], 13);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    var leftLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}').addTo(map);
+    var currentRight = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
+    var sideBySide = L.control.sideBySide(leftLayer, currentRight).addTo(map);
+
+    function updateRightLayer() {
+        map.removeLayer(currentRight);
+        const type = document.getElementById('layer_select').value;
+        const url = type==='satellite'?'World_Imagery':(type==='hillshade'?'Elevation/World_Hillshade':'World_Street_Map');
+        currentRight = L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/${url}/MapServer/tile/{z}/{y}/{x}`).addTo(map);
+        sideBySide.setRightLayers(currentRight);
+    }
+
+    map.on('click', (e) => {
+        clickedCoords = e.latlng; if (marker) map.removeLayer(marker); marker = L.marker(clickedCoords).addTo(map);
+        document.getElementById('station-info').innerText = `Lat: ${clickedCoords.lat.toFixed(4)} / Lng: ${clickedCoords.lng.toFixed(4)}`;
+        runDiagnosis();
+    });
+
+    // --- MGI 算法 ---
+    function runDiagnosis() {
+        const rh = parseFloat(document.getElementById('rh').value) || 0;
+        const mat = parseFloat(document.getElementById('mat_info').value) || 1.25;
+        const space = parseFloat(document.getElementById('space_info').value) || 1.2;
+        const ndwi = parseFloat(document.getElementById('ndwi_val').value) || 1.1;
+        const lat = clickedCoords ? clickedCoords.lat : 25.03;
+        let creg = (lat > 25.1 || (lat > 24.7 && lat < 24.9)) ? 1.45 : 1.1;
+        let base = Math.max(0, rh - 55);
+        let mgi = Math.pow(base, 1.3) * (mat * ndwi * space * creg * 0.25);
+        mgi = Math.min(Math.max(mgi, 0), 100);
+        document.getElementById('mgi-value').innerText = Math.round(mgi);
+        const box = document.getElementById('mgi-box');
+        const costBox = document.getElementById('cost-box');
+        const d = i18n[currentLang];
+        if (mgi > 65) { box.style.background = 'var(--danger)'; costBox.innerText = d.high_risk; }
+        else if (mgi > 25) { box.style.background = 'var(--warning)'; costBox.innerText = '⚠️ 注意：黴菌誘發期'; }
+        else { box.style.background = 'var(--success)'; costBox.innerText = d.low_risk; }
+        updateRadar(rh, ndwi, space, mat, mgi);
+    }
+
+    // --- 診斷報告 ---
+    async function handleAiDiagnosis() {
+        const key = document.getElementById('gemini_key').value;
+        const btn = document.getElementById('ai-btn');
+        const report = document.getElementById('ai-report');
+        const d = i18n[currentLang];
+        btn.innerText = d.handshake; btn.disabled = true; report.style.display = "block";
+        report.innerHTML = `<div id="conn-status" class="conn-tag" style="background:#64748b; color:white">CHECKING...</div>`;
+        try {
+            if (!key) throw new Error();
+            const prompt = `You are a Building Physicist. Data: MGI ${document.getElementById('mgi-value').innerText}, RH ${document.getElementById('rh').value}%. Analyze EMC and provide specific actions. Response in ${currentLang==='zh'?'Traditional Chinese':'English'}.`;
+            const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${key}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:prompt}]}]}) });
+            const res = await resp.json();
+            document.getElementById('conn-status').innerText = d.conn_ok; document.getElementById('conn-status').style.background = "var(--success)";
+            report.innerHTML += `<br>` + res.candidates[0].content.parts[0].text.replace(/\n/g, "<br>");
+        } catch (e) {
+            document.getElementById('conn-status').innerText = d.conn_fail; document.getElementById('conn-status').style.background = "var(--warning)";
+            runMasterInference();
+        } finally { btn.innerText = d.ai_btn; btn.disabled = false; }
+    }
+
+    function runMasterInference() {
+        const rh = parseFloat(document.getElementById('rh').value);
+        const mgi = parseInt(document.getElementById('mgi-value').innerText);
+        const zh = currentLang === 'zh';
+        const report = document.getElementById('ai-report');
+        let html = `<div class="report-sec"><span class="report-title">📊 ${zh?'學術風險分析':'Risk Analysis'}</span>`;
+        html += zh ? `檢測到邊界層飽和。牆面微氣候濕度可能已高於中心值 10% 以上，材料進入吸濕共振期。` : `Boundary layer saturation detected. Surface micro-climate humidity likely exceeds center by 10%.`;
+        html += `</div><div class="report-sec"><span class="report-title">✅ ${zh?'專業動作建議':'Execution Strategy'}</span>`;
+        if (mgi > 50) {
+            html += zh ? `1. <b>除濕目標：</b> 強制設於 50%。<br>2. <b>配置：</b> 除濕機放地面低位。<br>3. <b>通風：</b> 濕冷天嚴禁開窗。` : `1. <b>Target:</b> RH 50%.<br>2. <b>Placement:</b> Floor level.<br>3. <b>Ventilation:</b> Close windows in humid weather.`;
+        } else {
+            html += zh ? `維持 55% 除濕即可。` : `Maintain 55% RH.`;
+        }
+        html += `</div>`; report.innerHTML += html;
+    }
+
+    // --- 修正後的同步模組 ---
+    async function syncCwa() {
+        const key = document.getElementById('cwa_key').value;
+        const d = i18n[currentLang];
+        if(!key) return alert(d.key_err);
+        let station = TAIWAN_STATIONS[0];
+        if(clickedCoords) { TAIWAN_STATIONS.forEach(st => { if (Math.sqrt(Math.pow(clickedCoords.lat-st.lat, 2) + Math.pow(clickedCoords.lng-st.lng, 2)) < 0.5) station = st; }); }
+        try {
+            const resp = await fetch(`https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${key}&stationId=${station.id}`);
+            const data = await resp.json();
+            const obs = data.records.Station[0].WeatherElement;
+            document.getElementById('temp').value = obs.AirTemperature || 25;
+            document.getElementById('rh').value = obs.RelativeHumidity || 70;
+            runDiagnosis(); alert(d.sync_ok + ` (${station.name})`);
+        } catch (e) { alert(d.key_err); }
+    }
+
+    async function syncGlobal() {
+        const key = document.getElementById('global_key').value;
+        const d = i18n[currentLang];
+        // 關鍵修正：若 Key 為空，顯示專屬提示詞
+        if(!key) return alert(d.enter_global_key);
+        if(!clickedCoords) return alert(d.click_map);
+        try {
+            const resp = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${clickedCoords.lat}&lon=${clickedCoords.lng}&appid=${key}&units=metric`);
+            const data = await resp.json();
+            document.getElementById('temp').value = data.main.temp;
+            document.getElementById('rh').value = data.main.humidity;
+            runDiagnosis(); alert(d.sync_ok);
+        } catch (e) { alert(d.key_err); }
+    }
+
+    function updateRadar(rh, ndwi, space, mat, mgi) {
+        const ctx = document.getElementById('radarChart').getContext('2d');
+        if(radarChart) radarChart.destroy();
+        radarChart = new Chart(ctx, { type: 'radar', data: { labels: i18n[currentLang].chart_labels, datasets: [{ data: [rh, ndwi*50, (2.1-space)*45, mat*50, mgi], backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: '#3b82f6', borderWidth: 2, pointRadius: 0 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: '#e2e8f0' } } }, plugins: { legend: { display: false } } } });
+    }
+    
+    function saveKeys() { localStorage.setItem('cwa_key', document.getElementById('cwa_key').value); localStorage.setItem('global_key', document.getElementById('global_key').value); localStorage.setItem('gemini_key', document.getElementById('gemini_key').value); }
+    window.onload = function() { document.getElementById('cwa_key').value = localStorage.getItem('cwa_key') || ""; document.getElementById('global_key').value = localStorage.getItem('global_key') || ""; document.getElementById('gemini_key').value = localStorage.getItem('gemini_key') || ""; changeLanguage(); };
+</script>
+</body>
+</html>
