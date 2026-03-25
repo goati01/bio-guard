@@ -1,6 +1,6 @@
 # Bio-Guard 16.5 | 建築物理與環境風險診斷系統
 
-> 🚀 **[即時啟動診斷儀：點此進入](https://goati01.github.io/Bio-Guard/)**
+> 🚀 **[即時啟動診斷儀：點此進入](https://goati01.github.io/bio-guard/)**
 > 📖 **[深度技術手冊：MANUAL.md](./MANUAL.md)**
 # Bio-Guard 16.5 | 建築物理環境診斷平台
 
