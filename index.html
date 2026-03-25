@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bio-Guard 16.5 | Mobile Draggable Pro</title>
+    <title>Bio-Guard 16.5 | Field Diagnostic Pro</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -12,34 +12,31 @@
 
     <style>
         :root { --primary: #0f172a; --accent: #3b82f6; --danger: #ef4444; --warning: #f59e0b; --success: #10b981; --bg: #f8fafc; }
-        
-        /* 基礎佈局 (電腦版) */
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        /* --- 響應式佈局與 перетаскивание 邏輯 (手機版) --- */
+        /* 響應式佈局：手機版轉為垂直堆疊 */
         @media (max-width: 768px) {
             body { flex-direction: column; overflow-y: auto; height: auto; }
-            #sidebar { width: 100% !important; height: auto !important; padding: 15px !important; box-shadow: none !important; flex-shrink: 0; }
-            #main-content { height: 350px !important; width: 100% !important; order: -1; } /* 地圖移至頂部 */
+            #sidebar { width: 100% !important; height: auto !important; padding: 15px !important; box-shadow: none !important; }
+            #main-content { height: 350px !important; width: 100% !important; order: -1; }
             
-            /* 手機版 dashboard 改為 position: fixed，使其浮動並準備 перетаскивание */
+            /* 手機版 dashboard 改為固定定位，並鎖定 X/Y 軸觸摸 */
             #dashboard { 
                 position: fixed !important; 
                 top: 20px !important; 
                 right: 20px !important; 
-                width: 340px !important; /* 手機版稍窄，預留側邊空間 */
+                width: 340px !important; 
                 box-sizing: border-box !important; 
                 border-radius: 20px !important; 
                 z-index: 2000 !important; 
-                touch-action: none; /* 禁用預設滾動，允許 JS 處理轉移 */
-                cursor: grab; /* 電腦版測試時顯示抓取鼠標 */
+                touch-action: none; /* 關鍵：鎖定系統預設滾動 */
+                cursor: grab;
             }
-            #dashboard:active { cursor: grabbing; } /* 電腦版測試時顯示抓取狀態 */
-            #chart-container { height: 200px !important; }
+            #dashboard:active { cursor: grabbing; }
         }
 
         #sidebar { width: 380px; background: white; padding: 25px; box-shadow: 4px 0 15px rgba(0,0,0,0.05); overflow-y: auto; z-index: 1000; flex-shrink: 0; }
-        #main-content { flex-grow: 1; position: relative; width: 100%; height: 100%; }
+        #main-content { flex-grow: 1; position: relative; }
         #map { height: 100%; width: 100%; background: #1a1a1a; }
         
         .api-panel { background: #f1f5f9; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
@@ -50,7 +47,8 @@
         .section-title { font-size: 0.9rem; font-weight: 700; color: var(--primary); margin: 20px 0 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; }
         .input-group { margin-bottom: 12px; }
         label { display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; }
+        
         .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; margin-top: 5px; }
         .btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
         .btn:disabled { background: #94a3b8; cursor: not-allowed; }
@@ -59,6 +57,10 @@
         .report-sec { margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
         .report-title { color: var(--primary); font-weight: 800; font-size: 0.92rem; display: block; margin-bottom: 3px; }
         .conn-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 900; margin-bottom: 10px; font-family: monospace; }
+        
+        /* 隱藏元素 */
+        #photo_input { display: none; }
+        canvas { display: none; }
     </style>
 </head>
 <body>
@@ -95,13 +97,13 @@
         <div class="input-group" style="flex:1;"><label id="lbl-temp">溫度 (°C)</label><input type="number" id="temp" value="24.0" step="0.1" oninput="runDiagnosis()"></div>
         <div class="input-group" style="flex:1;"><label id="lbl-rh">相對濕度 (%)</label><input type="number" id="rh" value="70" step="1" oninput="runDiagnosis()"></div>
     </div>
-    <div class="input-group" style="margin-bottom:12px;"><label id="lbl-pm">孢子負荷 (PM2.5)</label><input type="number" id="pm" value="15" oninput="runDiagnosis()"></div>
+    <div class="input-group"><label id="lbl-pm">孢子負荷 (PM2.5)</label><input type="number" id="pm" value="15" oninput="runDiagnosis()"></div>
 
     <div class="section-title" id="lbl-space-title">🏘️ 區域物理參數校準</div>
-    <div class="input-group" style="margin-bottom:12px;"><label id="lbl-layer-select">圖層對焦 (右側)</label><select id="layer_select" onchange="updateRightLayer()"></select></div>
-    <div class="input-group" style="margin-bottom:12px;"><label id="lbl-mat">材料敏感等級 (權重)</label><select id="mat_info" onchange="runDiagnosis()"></select></div>
-    <div class="input-group" style="margin-bottom:12px;"><label id="lbl-vent">空間物理循環狀態</label><select id="space_info" onchange="runDiagnosis()"></select></div>
-    <div class="input-group" style="margin-bottom:12px;"><label id="lbl-ndwi">地底毛細管水權重</label><select id="ndwi_val" onchange="runDiagnosis()"></select></div>
+    <div class="input-group"><label id="lbl-layer-select">圖層分析對焦</label><select id="layer_select" onchange="updateRightLayer()"></select></div>
+    <div class="input-group"><label id="lbl-mat">材料敏感等級 (權重)</label><select id="mat_info" onchange="runDiagnosis()"></select></div>
+    <div class="input-group"><label id="lbl-vent">空間物理循環狀態</label><select id="space_info" onchange="runDiagnosis()"></select></div>
+    <div class="input-group"><label id="lbl-ndwi">地底毛細管水權重</label><select id="ndwi_val" onchange="runDiagnosis()"></select></div>
 
     <div id="chart-container" style="height: 180px; margin-top:15px;"><canvas id="radarChart"></canvas></div>
 </div>
@@ -112,12 +114,20 @@
         <div id="mgi-box" class="mgi-card">
             <small id="lbl-mgi-title" style="opacity:0.8; font-weight:600">學術發霉指數 (MGI)</small>
             <span id="mgi-value" class="mgi-value">--</span>
-            <div id="cost-box" style="font-size: 0.75rem; font-weight: 800; padding: 5px; border-radius: 6px; margin-top: 8px; background:rgba(255,255,255,0.2)">數據連動中...</div>
+            <div id="cost-box" style="font-size: 0.75rem; font-weight: 800; padding: 5px; border-radius: 6px; margin-top: 8px; background:rgba(255,255,255,0.2)">數據解析中...</div>
         </div>
-        <button id="ai-btn" class="btn" style="background:var(--primary); color:white; margin-top: 5px; height: 50px;" onclick="handleAiDiagnosis()">🤖 執行大師級深度診斷</button>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button id="ai-btn" class="btn" style="background:var(--primary); color:white;" onclick="handleAiDiagnosis()">🤖 深度診斷</button>
+            <button id="photo-btn" class="btn" style="background:var(--success); color:white;" onclick="triggerPhoto()">📸 拍照存檔</button>
+        </div>
+
         <div id="ai-report"></div>
     </div>
 </div>
+
+<input type="file" id="photo_input" accept="image/*" capture="camera">
+<canvas id="watermark_canvas"></canvas>
 
 <script>
     const i18n = {
@@ -125,15 +135,16 @@
             cwa: "氣象署API KEY (台灣)", global: "OpenWeather Key (全球同步)", gemini: "Gemini API KEY (2026)",
             geo: "📍 地理與環境日誌", sync: "數據同步中心", btn_cwa: "🇹🇼 氣象署同步", btn_global: "🌐 全球自動同步",
             temp: "溫度 (°C)", rh: "相對濕度 (%)", pm: "孢子負荷 (PM2.5)", space: "🏘️ 區域物理參數校準",
-            layer: "圖層對焦 (右側)", vent: "空間物理循環狀態", ndwi: "地底毛細管水權重", mat: "材料敏感等級 (權重)",
-            mgi: "學術發霉指數 (MGI)", ai_btn: "🤖 執行大師級深度診斷", high_risk: "⚠️ 臨界風險區域", low_risk: "✅ 物理穩定環境",
-            handshake: "⏳ API 安全握手中...", conn_ok: "[CONNECTED: GEMINI 3]", conn_fail: "[LOCAL FALLBACK]",
-            sync_ok: "✅ 同步成功！", key_err: "❌ 金鑰失效", click_map: "請點擊地圖鎖定座標",
+            layer: "圖層分析對焦", vent: "空間物理循環狀態", ndwi: "地底毛細管水權重", mat: "材料敏感等級 (權重)",
+            mgi: "學術發霉指數 (MGI)", ai_btn: "🤖 深度診斷", photo_btn: "📸 拍照存檔",
+            high_risk: "⚠️ 嚴重臨界風險", low_risk: "✅ 物理穩定環境",
+            handshake: "⏳ API 握手中...", conn_ok: "[CONNECTED: GEMINI 3]", conn_fail: "[LOCAL FALLBACK]",
+            sync_ok: "✅ 同步成功！", key_err: "❌ 金鑰失效", click_map: "請先點擊地圖鎖定座標",
             enter_global_key: "請輸入 OpenWeather 全球 API Key",
-            layers: ["衛星實景 (查驗植被遮陰)", "地形陰影 (判定地氣排水)", "街道地圖 (查閱都市熱島)"],
+            layers: ["衛星實景 (查驗植被遮陰)", "地形陰影 (判定排水)", "街道地圖 (查閱都市熱島)"],
             spaces: ["地下室 / 密閉倉庫 (氣流停滯)", "單面採光公寓 (標準環境)", "南北通透住宅 (優良循環)"],
             grounds: ["高風險區域 (鄰近水脈低窪)", "標準地質區域 (穩定都會)", "優質高台地脈 (乾燥地氣)"],
-            materials: ["極敏感 (皮革、壁紙、原木家具)", "敏感 (合板製品、加工木板)", "中度抗性 (混凝土、紅磚牆)", "高抗性 (磁磚、玻璃、金屬)"],
+            materials: ["極敏感 (皮革、壁紙、原木)", "敏感 (合板製品、加工板)", "中度抗性 (混凝土、紅磚)", "高抗性 (磁磚、玻璃、金屬)"],
             chart_labels: ['相對濕度', '地脈水分', '空間通風', '材料敏感', '物理風險'],
             master_title: "🏠 大師級建築物理深度報告"
         },
@@ -142,14 +153,15 @@
             geo: "📍 Geo-Environment Log", sync: "Data Sync Center", btn_cwa: "🇹🇼 Taiwan Sync", btn_global: "🌐 Global Sync",
             temp: "Temp (°C)", rh: "Humidity (%)", pm: "PM2.5", space: "🏘️ Regional Calibration",
             layer: "Analyze Layer", vent: "Ventilation Cycle", ndwi: "Ground Capillary", mat: "Material Sensitivity",
-            mgi: "Academic MGI", ai_btn: "🤖 Run Master Diagnosis", high_risk: "⚠️ Critical Risk", low_risk: "✅ Safe Environment",
+            mgi: "Academic MGI", ai_btn: "🤖 Diagnosis", photo_btn: "📸 Take Photo",
+            high_risk: "⚠️ Critical Risk", low_risk: "✅ Safe Environment",
             handshake: "⏳ API Handshaking...", conn_ok: "[CONNECTED: GEMINI 3]", conn_fail: "[LOCAL FALLBACK]",
             sync_ok: "✅ Sync Successful!", key_err: "❌ Invalid Key", click_map: "Click map first",
             enter_global_key: "Please enter OpenWeather Global API Key",
             layers: ["Satellite (Shade)", "Hillshade (Terrain)", "Topo (Urban)"],
             spaces: ["Basement (Stagnant)", "Standard Apartment", "Cross-ventilation (Ideal)"],
             grounds: ["High Risk (Water Vein)", "Standard (Urban)", "Premium (Highland)"],
-            materials: ["Very Sensitive (Leather, Wood)", "Sensitive (MDF, Paper)", "Medium (Concrete, Brick)", "Resistant (Tile, Metal)"],
+            materials: ["Very Sensitive", "Sensitive", "Medium", "Resistant"],
             chart_labels: ['Humidity', 'Ground', 'Ventilation', 'Material', 'MGI'],
             master_title: "🏠 Master Physics Diagnosis Report"
         }
@@ -179,6 +191,8 @@
         document.getElementById('lbl-ndwi').innerText = d.ndwi;
         document.getElementById('lbl-mgi-title').innerText = d.mgi;
         document.getElementById('ai-btn').innerText = d.ai_btn;
+        document.getElementById('photo-btn').innerText = d.photo_btn;
+        
         const updateSelect = (id, options, values) => {
             const sel = document.getElementById(id); const cur = sel.value; sel.innerHTML = "";
             options.forEach((opt, i) => { let o = document.createElement("option"); o.value = values[i]; o.text = opt; if(o.value === cur) o.selected = true; sel.add(o); });
@@ -210,7 +224,6 @@
         runDiagnosis();
     });
 
-    // --- MGI 算法與區域判定 ---
     function runDiagnosis() {
         const rh = parseFloat(document.getElementById('rh').value) || 0;
         const mat = parseFloat(document.getElementById('mat_info').value) || 1.25;
@@ -226,22 +239,60 @@
         const costBox = document.getElementById('cost-box');
         const d = i18n[currentLang];
         if (mgi > 65) { box.style.background = 'var(--danger)'; costBox.innerText = d.high_risk; }
-        else if (mgi > 25) { box.style.background = 'var(--warning)'; costBox.innerText = '⚠️ 注意：黴菌誘發潛伏期'; }
+        else if (mgi > 25) { box.style.background = 'var(--warning)'; costBox.innerText = '⚠️ 注意：黴菌誘發期'; }
         else { box.style.background = 'var(--success)'; costBox.innerText = d.low_risk; }
         updateRadar(rh, ndwi, space, mat, mgi);
     }
 
-    // --- 大師智庫與本地診斷範本 ---
+    // --- 📸 拍照與浮水印邏輯 ---
+    function triggerPhoto() { document.getElementById('photo_input').click(); }
+
+    document.getElementById('photo_input').onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.getElementById('watermark_canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.width; canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                const padding = canvas.width * 0.03;
+                const fontSize = canvas.width * 0.035;
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+                ctx.fillRect(padding, canvas.height - fontSize * 6, fontSize * 18, fontSize * 5);
+                ctx.fillStyle = "white";
+                const mgi = document.getElementById('mgi-value').innerText;
+                const temp = document.getElementById('temp').value;
+                const rh = document.getElementById('rh').value;
+                const date = new Date().toLocaleString();
+                const coords = clickedCoords ? `Lat: ${clickedCoords.lat.toFixed(4)} / Lng: ${clickedCoords.lng.toFixed(4)}` : "Location Unlocked";
+                ctx.fillText(`Bio-Guard 16.5 | MGI: ${mgi}`, padding + 10, canvas.height - fontSize * 4.5);
+                ctx.fillText(`ENV: ${temp}°C / ${rh}%`, padding + 10, canvas.height - fontSize * 3.2);
+                ctx.fillText(`GEO: ${coords}`, padding + 10, canvas.height - fontSize * 1.9);
+                ctx.fillText(`TIME: ${date}`, padding + 10, canvas.height - fontSize * 0.6);
+                const link = document.createElement('a');
+                link.download = `BioGuard_${Date.now()}.jpg`;
+                link.href = canvas.toDataURL("image/jpeg", 0.9);
+                link.click();
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
     async function handleAiDiagnosis() {
         const key = document.getElementById('gemini_key').value;
         const btn = document.getElementById('ai-btn');
         const report = document.getElementById('ai-report');
         const d = i18n[currentLang];
         btn.innerText = d.handshake; btn.disabled = true; report.style.display = "block";
-        report.innerHTML = `<div id="conn-status" class="conn-tag" style="background:#64748b; color:white">PROTOCOL CHECK...</div>`;
+        report.innerHTML = `<div id="conn-status" class="conn-tag" style="background:#64748b; color:white">CHECKING...</div>`;
         try {
             if (!key) throw new Error();
-            const prompt = `You are a Building Physicist. Data: MGI ${document.getElementById('mgi-value').innerText}, RH ${document.getElementById('rh').value}%. Material: ${document.getElementById('mat_info').selectedOptions[0].text}. Response in ${currentLang==='zh'?'Traditional Chinese':'English'}. Analyze EMC and provide specific actions.`;
+            const prompt = `You are a Building Physicist. Data: MGI ${document.getElementById('mgi-value').innerText}, RH ${document.getElementById('rh').value}%. Response in ${currentLang==='zh'?'Traditional Chinese':'English'}. Analyze EMC and provide specific actions.`;
             const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${key}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:prompt}]}]}) });
             const res = await resp.json();
             document.getElementById('conn-status').innerText = d.conn_ok; document.getElementById('conn-status').style.background = "var(--success)";
@@ -253,19 +304,19 @@
     }
 
     function runMasterInference() {
-        const mgi = parseInt(document.getElementById('mgi-value').innerText);
         const zh = currentLang === 'zh';
         const report = document.getElementById('ai-report');
-        let html = `<div class="report-sec"><span class="report-title">📊 ${zh?'學術風險與材料物理範本':'Risk & Material Physics TEMPLATE'}</span>`;
-        html += zh ? `檢測到邊界層飽和。牆面微氣候濕度可能已高於中心值 10% 以上，材料與外部濕氣可能產生「露點共振」。` : `Boundary layer saturation detected. Corner/Surface EMC Confluence risk elevated.`;
-        html += `</div><div class="report-sec"><span class="report-title">✅ ${zh?'本地專業建議 (最高 CP 值)':'Execution Strategy (High CP Value)'}</span>`;
+        const mgi = parseInt(document.getElementById('mgi-value').innerText);
+        let html = `<div class="report-sec"><span class="report-title">📊 ${zh?'學術風險分析範本':'Risk Analysis TEMPLATE'}</span>`;
+        html += zh ? `邊界層飽和。牆面微氣候濕度可能高於中心值 10%，進入吸濕共振期。` : `Boundary layer saturation detected.`;
+        html += `</div><div class="report-sec"><span class="report-title">✅ ${zh?'專業建議方向':'Action Strategy'}</span>`;
         if (mgi > 50) {
-            html += zh ? `1. <b>除濕目標：</b> 強制設定於 <b>50%</b>。當空間中心為 70% 時，一般模式不足以抑制牆角。` : `1. Force set RH target to <b>50%</b>. General comfort modes insufficient.`;
-        } else { html += zh ? `維持 <b>55%</b> 常規除濕即可。` : `Maintain standard RH at <b>55%</b>.`; }
+            html += zh ? `1. <b>除濕：</b> 設 50%。<br>2. <b>配置：</b> 放地面低位。<br>3. <b>通風：</b> 濕冷天嚴禁開窗。` : `1. Target 50% RH. 2. Floor level. 3. Close windows.`;
+        } else { html += zh ? `維持 55% 除濕即可。` : `Keep 55% RH.`; }
         html += `</div>`; report.innerHTML += html;
     }
 
-    // --- 同步與 API 攔截 ---
+    // --- API 同步 ---
     async function syncCwa() {
         const key = document.getElementById('cwa_key').value;
         const d = i18n[currentLang];
@@ -296,11 +347,11 @@
         } catch (e) { alert(d.key_err); }
     }
 
-    // --- 雷達圖分析 ---
+    // --- 圖表 ---
     function updateRadar(rh, ndwi, space, mat, mgi) {
         const ctx = document.getElementById('radarChart').getContext('2d');
         if(radarChart) radarChart.destroy();
-        radarChart = new Chart(ctx, { type: 'radar', data: { labels: i18n[currentLang].chart_labels, datasets: [{ data: [rh, ndwi*50, (2.1-space)*45, mat*50, mgi], backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: '#3b82f6', borderWidth: 2, pointRadius: 0 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: '#e2e8f0' }, pointLabels: { font: { size: 11, weight: 'bold' } } } }, plugins: { legend: { display: false } } } });
+        radarChart = new Chart(ctx, { type: 'radar', data: { labels: i18n[currentLang].chart_labels, datasets: [{ data: [rh, ndwi*50, (2.1-space)*45, mat*50, mgi], backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: '#3b82f6', borderWidth: 2, pointRadius: 0 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: '#e2e8f0' }, pointLabels: { font: { size: 10, weight: 'bold' } } } }, plugins: { legend: { display: false } } } });
     }
     
     function saveKeys() { localStorage.setItem('cwa_key', document.getElementById('cwa_key').value); localStorage.setItem('global_key', document.getElementById('global_key').value); localStorage.setItem('gemini_key', document.getElementById('gemini_key').value); }
@@ -310,37 +361,42 @@
         document.getElementById('gemini_key').value = localStorage.getItem('gemini_key') || ""; 
         changeLanguage(); 
 
-        // --- 📸 手機版 Draggable Panel HACK ---
+        // --- 📸 手機版全向 перетаскивание HACK ---
         const dashboard = document.getElementById('dashboard');
-        // 僅在行動版且 `#dashboard` 為 `fixed` 時啟用 перетаскивание
+        
         if (window.innerWidth <= 768) {
             let offset = [0, 0];
             let isDown = false;
 
             dashboard.addEventListener('touchstart', function(e) {
-                if (e.target.tagName.toLowerCase() === 'button' || e.target.tagName.toLowerCase() === 'select') return;
+                // 若點擊的是按鈕或選單，不觸發 перетаскивание
+                if (e.target.tagName.toLowerCase() === 'button' || e.target.tagName.toLowerCase() === 'select' || e.target.tagName.toLowerCase() === 'input') return;
+                
                 isDown = true;
+                dashboard.style.transition = "none"; // 禁用過場動畫確保平滑
+                
+                // 計算手指與面板左上角的偏移量
+                const touch = e.touches[0];
                 offset = [
-                    dashboard.offsetLeft - e.touches[0].clientX,
-                    dashboard.offsetTop - e.touches[0].clientY
+                    dashboard.offsetLeft - touch.clientX,
+                    dashboard.offsetTop - touch.clientY
                 ];
-                dashboard.style.transition = "none"; // 禁用過場動畫，確保平滑抓取
-                dashboard.style.cursor = "grabbing";
             }, true);
 
             document.addEventListener('touchend', function() {
                 isDown = false;
-                dashboard.style.transition = "0.3s"; // 還原過場動畫
-                dashboard.style.cursor = "grab";
+                dashboard.style.transition = "0.3s"; // 還原動畫
             }, true);
 
             document.addEventListener('touchmove', function(e) {
                 if (!isDown) return;
-                // 防止 перетаскивание 時頁面滾動
+                
+                // 強制阻止預設的頁面滾動行為，鎖定全向 перетаскивание
                 if (e.cancelable) e.preventDefault(); 
                 
-                let x = e.touches[0].clientX + offset[0];
-                let y = e.touches[0].clientY + offset[1];
+                const touch = e.touches[0];
+                let x = touch.clientX + offset[0];
+                let y = touch.clientY + offset[1];
                 
                 // 視窗邊界限制 (保險絲)
                 const minX = 0;
@@ -351,9 +407,10 @@
                 x = Math.min(Math.max(x, minX), maxX);
                 y = Math.min(Math.max(y, minY), maxY);
 
+                // 實時更新 X 與 Y 軸座標
                 dashboard.style.left = x + 'px';
                 dashboard.style.top = y + 'px';
-                // 清除 absolute 定位遺留的 right/bottom，強制使用 top/left
+                // 清除 absolute 定位遺留的 right/bottom
                 dashboard.style.right = 'auto'; 
                 dashboard.style.bottom = 'auto'; 
             }, true);
