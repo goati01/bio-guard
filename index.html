@@ -3,85 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bio-Guard 16.5 | Final Field Pro</title>
+    <title>Bio-Guard 16.5 | Final Integrated Pro</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/digidem/leaflet-side-by-side@gh-pages/leaflet-side-by-side.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         :root { --primary: #0f172a; --accent: #3b82f6; --danger: #ef4444; --warning: #f59e0b; --success: #10b981; --bg: #f8fafc; }
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
         @media (max-width: 768px) {
-            body { flex-direction: column; height: 100vh; }
-            #sidebar { width: 100% !important; height: 40% !important; padding: 15px !important; overflow-y: auto; z-index: 1000; flex-shrink: 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); }
-            #main-content { flex-grow: 1 !important; height: 60% !important; width: 100% !important; order: -1; position: relative; }
+            body { flex-direction: column; overflow-y: auto; height: auto; }
+            #sidebar { width: 100% !important; height: auto !important; padding: 15px !important; box-shadow: none !important; flex-shrink: 0; }
+            #main-content { height: 400px !important; width: 100% !important; order: -1; }
             #dashboard { 
                 position: fixed !important; 
-                top: 20px; right: 20px; 
+                top: 20px !important; right: 20px !important; 
                 width: 320px !important; 
                 z-index: 9999 !important; 
-                background: rgba(255,255,255,0.95); 
+                touch-action: none !important; 
+                background: rgba(255,255,255,0.98) !important;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
-                touch-action: none !important; /* 核心：禁止所有系統手勢 */
             }
         }
 
-        #sidebar { width: 380px; background: white; padding: 25px; box-shadow: 4px 0 15px rgba(0,0,0,0.05); overflow-y: auto; z-index: 1000; }
+        #sidebar { width: 380px; background: white; padding: 25px; box-shadow: 4px 0 15px rgba(0,0,0,0.05); overflow-y: auto; z-index: 1000; flex-shrink: 0; }
         #main-content { flex-grow: 1; position: relative; }
-        #map { height: 100%; width: 100%; }
-        #dashboard { position: absolute; top: 20px; right: 20px; width: 360px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 15px; border-radius: 20px; z-index: 2000; border: 1px solid rgba(255,255,255,0.3); }
+        #map { height: 100%; width: 100%; background: #1a1a1a; }
+        .api-panel { background: #f1f5f9; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        #dashboard { position: absolute; top: 20px; right: 20px; width: 360px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 20px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); z-index: 2000; border: 1px solid rgba(255,255,255,0.3); max-height: 90vh; overflow-y: auto; }
         
-        /* 拖拽握把：藍色卡片區域 */
-        .drag-handle { 
-            background: var(--primary); padding: 20px; border-radius: 15px; text-align: center; color: white; 
-            cursor: grab; touch-action: none !important; user-select: none;
-        }
-        .drag-handle:active { cursor: grabbing; }
+        .mgi-card { background: var(--primary); padding: 20px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px; cursor: grab; touch-action: none; }
+        .mgi-card:active { cursor: grabbing; }
+        .mgi-value { font-size: 3.5rem; font-weight: 900; display: block; line-height: 1; margin: 5px 0; }
         
-        .mgi-value { font-size: 3.2rem; font-weight: 900; display: block; line-height: 1; margin: 5px 0; }
-        .input-group { margin-bottom: 10px; }
-        input, select { width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box; }
-        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; margin-top: 8px; }
-        #ai-report { margin-top: 10px; padding: 12px; background: #fff; border-radius: 10px; font-size: 0.85rem; line-height: 1.6; display: none; max-height: 200px; overflow-y: auto; border: 1px solid #eee; }
+        .section-title { font-size: 0.9rem; font-weight: 700; color: var(--primary); margin: 20px 0 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; }
+        .input-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; margin-top: 5px; }
+        
+        #ai-report { margin-top: 15px; padding: 20px; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 0.88rem; line-height: 1.8; display: none; color: #334155; }
+        .report-sec { margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+        .report-title { color: var(--primary); font-weight: 800; font-size: 0.92rem; display: block; margin-bottom: 3px; }
+        .conn-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 900; margin-bottom: 10px; font-family: monospace; }
         #photo_input, canvas { display: none; }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <select id="lang_select" onchange="changeLanguage()" style="background: var(--accent); color: white; border: none; font-weight: 800; padding: 5px; border-radius: 4px; width: auto; margin-bottom: 10px;">
-        <option value="zh">繁體中文</option><option value="en">English</option>
-    </select>
-    <h2 style="margin: 0 0 10px; font-size: 1.2rem;">Bio-Guard <span style="color:var(--accent)">16.5</span></h2>
-    <input type="password" id="cwa_key" placeholder="CWA API Key" onchange="saveKeys()" style="margin-bottom:8px">
-    <input type="password" id="global_key" placeholder="OpenWeather Key" onchange="saveKeys()" style="margin-bottom:8px">
-    <input type="password" id="gemini_key" placeholder="Gemini API Key" onchange="saveKeys()">
-    <div id="station-info" style="background: #eff6ff; padding: 10px; border-radius: 8px; font-size: 0.7rem; margin-top: 10px;">請點擊地圖鎖定座標</div>
+    <div style="margin-bottom: 15px;">
+        <select id="lang_select" onchange="changeLanguage()" style="background: var(--accent); color: white; border: none; font-weight: 800; padding: 5px; border-radius: 4px;">
+            <option value="zh">繁體中文 (Traditional Chinese)</option>
+            <option value="en">English (Professional)</option>
+        </select>
+    </div>
+    <h2 id="lbl-app-title" style="margin: 0 0 15px; font-size: 1.3rem; color: var(--primary);">Bio-Guard <span style="color:var(--accent)">16.5</span></h2>
+
+    <div class="api-panel">
+        <input type="password" id="cwa_key" placeholder="氣象署 API Key" onchange="saveKeys()" style="margin-bottom:8px">
+        <input type="password" id="global_key" placeholder="OpenWeather Key" onchange="saveKeys()" style="margin-bottom:8px">
+        <input type="password" id="gemini_key" placeholder="Gemini API Key" onchange="saveKeys()">
+    </div>
+    
+    <div class="section-title">📍 環境地理日誌</div>
+    <div id="station-info" style="background: #eff6ff; padding: 12px; border-radius: 10px; font-size: 0.75rem; color: #1e40af; font-family: monospace;">請點擊地圖鎖定座標</div>
+
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
-        <button class="btn" style="background:#0f172a; color:white; font-size:0.75rem;" onclick="syncCwa()">🇹🇼 測站同步</button>
-        <button class="btn" style="background:#3b82f6; color:white; font-size:0.75rem;" onclick="syncGlobal()">🌐 全球同步</button>
+        <button class="btn" style="background:#0f172a; color:white; font-size:0.75rem;" onclick="syncCwa()">🇹🇼 氣象署同步</button>
+        <button class="btn" style="background:#3b82f6; color:white; font-size:0.75rem;" onclick="syncGlobal()">🌐 全球自動同步</button>
     </div>
-    <div style="display: flex; gap: 10px; margin-top: 10px;">
-        <div style="flex:1;"><label style="font-size:0.7rem;">溫度</label><input type="number" id="temp" value="24.0" oninput="runDiagnosis()"></div>
-        <div style="flex:1;"><label style="font-size:0.7rem;">濕度</label><input type="number" id="rh" value="70" oninput="runDiagnosis()"></div>
+
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <div class="input-group" style="flex:1;"><label>溫度 (°C)</label><input type="number" id="temp" value="24.0" step="0.1" oninput="runDiagnosis()"></div>
+        <div class="input-group" style="flex:1;"><label>相對濕度 (%)</label><input type="number" id="rh" value="70" step="1" oninput="runDiagnosis()"></div>
     </div>
-    <div style="margin-top:10px;">
-        <label style="font-size:0.7rem;">材料等級</label><select id="mat_info" onchange="runDiagnosis()"></select>
-    </div>
-    <div id="chart-container" style="height: 150px; margin-top:10px;"><canvas id="radarChart"></canvas></div>
+    <div class="input-group"><label>孢子負荷 (PM2.5)</label><input type="number" id="pm" value="15" oninput="runDiagnosis()"></div>
+
+    <div class="section-title">🏘️ 區域物理參數校準</div>
+    <div class="input-group"><label>分析圖層對焦 (右側)</label><select id="layer_select" onchange="updateRightLayer()"></select></div>
+    <div class="input-group"><label>材料敏感等級 (權重)</label><select id="mat_info" onchange="runDiagnosis()"></select></div>
+    <div class="input-group"><label>空間物理循環狀態</label><select id="space_info" onchange="runDiagnosis()"></select></div>
+    <div class="input-group"><label>地底毛細管水權重</label><select id="ndwi_val" onchange="runDiagnosis()"></select></div>
+
+    <div id="chart-container" style="height: 180px; margin-top:15px;"><canvas id="radarChart"></canvas></div>
 </div>
 
 <div id="main-content">
     <div id="map"></div>
     <div id="dashboard">
-        <div id="drag_handle" class="drag-handle">
-            <small style="opacity:0.8; font-weight:600; pointer-events:none;">按住此處可全向移動 (MGI)</small>
+        <div id="drag_handle" class="mgi-card">
+            <small style="opacity:0.8; font-weight:600; pointer-events:none;">按住此處全向移動 (MGI)</small>
             <span id="mgi-value" class="mgi-value" style="pointer-events:none;">--</span>
-            <div id="cost-box" style="font-size: 0.7rem; font-weight: 800; padding: 4px; border-radius: 6px; background:rgba(255,255,255,0.2); pointer-events:none;">數據解析中...</div>
+            <div id="cost-box" style="font-size: 0.75rem; font-weight: 800; padding: 5px; border-radius: 6px; background:rgba(255,255,255,0.2); pointer-events:none;">數據解析中...</div>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
-            <button class="btn" style="background:var(--primary); color:white; padding:8px;" onclick="handleAiDiagnosis()">🤖 診斷</button>
-            <button class="btn" style="background:var(--success); color:white; padding:8px;" onclick="triggerPhoto()">📸 拍照</button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button class="btn" style="background:var(--primary); color:white;" onclick="handleAiDiagnosis()">🤖 深度診斷</button>
+            <button class="btn" style="background:var(--success); color:white;" onclick="triggerPhoto()">📸 拍照存檔</button>
         </div>
         <div id="ai-report"></div>
     </div>
@@ -91,19 +112,54 @@
 <canvas id="watermark_canvas"></canvas>
 
 <script>
-    const i18n = { zh: { materials: ["極敏感", "敏感", "中度抗性", "高抗性"], chart: ['濕度', '地脈', '通風', '材料', '風險'] }, en: { materials: ["Very Sensitive", "Sensitive", "Medium", "Resistant"], chart: ['Humidity', 'Ground', 'Ventilation', 'Material', 'MGI'] } };
-    let currentLang = 'zh', radarChart, marker, clickedCoords;
+    const i18n = {
+        zh: { 
+            high_risk: "⚠️ 嚴重風險", low_risk: "✅ 物理穩定環境", sync_ok: "✅ 同步成功！", key_err: "❌ 金鑰失效", enter_global: "請輸入全球 API Key", click_map: "請先點擊地圖鎖定座標",
+            layers: ["衛星實景", "地形陰影", "街道地圖"], materials: ["極敏感 (原木/皮革)", "敏感 (系統櫃/合板)", "中度抗性 (混凝土)", "高抗性 (金屬)"], 
+            spaces: ["地下室 (氣流停滯)", "公寓 (標準環境)", "南北通透住宅"], grounds: ["高風險 (水脈低窪)", "標準 (穩定都會)", "優質高台 (乾燥)"],
+            chart_labels: ['相對濕度', '地脈水分', '空間通風', '材料敏感', '物理風險'] 
+        },
+        en: { 
+            high_risk: "⚠️ Critical Risk", low_risk: "✅ Safe Environment", sync_ok: "✅ Sync Successful!", key_err: "❌ Invalid Key", enter_global: "Enter Global Key", click_map: "Click map first",
+            layers: ["Satellite", "Hillshade", "Streets"], materials: ["Very Sensitive", "Sensitive", "Medium", "Resistant"], 
+            spaces: ["Basement", "Standard Apt", "Ideal Cross-vent"], grounds: ["High Risk", "Standard", "Premium"],
+            chart_labels: ['Humidity', 'Ground', 'Ventilation', 'Material', 'MGI'] 
+        }
+    };
+
+    let currentLang = 'zh', radarChart, marker, clickedCoords, sideBySide;
+    const TAIWAN_STATIONS = [{id:"466920",lat:25.037,lng:121.514},{id:"467570",lat:24.803,lng:120.978}];
 
     function changeLanguage() {
         currentLang = document.getElementById('lang_select').value;
         const d = i18n[currentLang];
-        const sel = document.getElementById('mat_info'); sel.innerHTML = "";
-        d.materials.forEach((opt, i) => { let o = document.createElement("option"); o.value = [1.6,1.25,0.75,0.3][i]; o.text = opt; sel.add(o); });
+        const updateSelect = (id, options, values) => {
+            const sel = document.getElementById(id); const cur = sel.value; sel.innerHTML = "";
+            options.forEach((opt, i) => { let o = document.createElement("option"); o.value = values[i]; o.text = opt; if(o.value === cur) o.selected = true; sel.add(o); });
+        };
+        updateSelect('layer_select', d.layers, ['satellite','hillshade','topo']);
+        updateSelect('mat_info', d.materials, ['1.6','1.25','0.75','0.3']);
+        updateSelect('space_info', d.spaces, ['1.5','1.2','0.9']);
+        updateSelect('ndwi_val', d.grounds, ['1.4','1.1','0.8']);
         runDiagnosis();
     }
 
     var map = L.map('map', { zoomControl: false }).setView([24.8138, 120.9675], 13);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    var leftLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}').addTo(map);
+    var rightLayers = { 
+        satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
+        hillshade: L.tileLayer('https://server.arcgisonline.com/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}'),
+        topo: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}')
+    };
+    var currentRight = rightLayers.satellite.addTo(map);
+    sideBySide = L.control.sideBySide(leftLayer, currentRight).addTo(map);
+
+    function updateRightLayer() {
+        map.removeLayer(currentRight);
+        currentRight = rightLayers[document.getElementById('layer_select').value].addTo(map);
+        sideBySide.setRightLayers(currentRight);
+    }
 
     map.on('click', (e) => {
         clickedCoords = e.latlng; if (marker) map.removeLayer(marker); marker = L.marker(clickedCoords).addTo(map);
@@ -113,15 +169,21 @@
 
     function runDiagnosis() {
         const rh = parseFloat(document.getElementById('rh').value) || 0;
+        const pm = parseFloat(document.getElementById('pm').value) || 0;
         const mat = parseFloat(document.getElementById('mat_info').value) || 1.25;
+        const space = parseFloat(document.getElementById('space_info').value) || 1.2;
+        const ndwi = parseFloat(document.getElementById('ndwi_val').value) || 1.1;
         const lat = clickedCoords ? clickedCoords.lat : 24.8;
-        let creg = (lat > 24.7 && lat < 24.9) ? 1.45 : 1.1;
-        let mgi = Math.max(0, Math.pow(rh - 55, 1.3) * (mat * creg * 0.3));
+
+        let creg = (lat > 25.1 || (lat > 24.7 && lat < 24.9)) ? 1.45 : 1.1;
+        let mgi = Math.pow(Math.max(0, rh - 55), 1.28) * (mat * ndwi * space * creg * 0.25) * (1 + pm/150);
         mgi = Math.min(Math.round(mgi), 100);
+
         document.getElementById('mgi-value').innerText = mgi;
-        document.getElementById('drag_handle').style.background = mgi > 65 ? 'var(--danger)' : (mgi > 30 ? 'var(--warning)' : 'var(--success)');
-        document.getElementById('cost-box').innerText = mgi > 65 ? "⚠️ 嚴重風險" : "✅ 穩定環境";
-        updateRadar(rh, mgi);
+        const handle = document.getElementById('drag_handle');
+        handle.style.background = mgi > 65 ? 'var(--danger)' : (mgi > 30 ? 'var(--warning)' : 'var(--success)');
+        document.getElementById('cost-box').innerText = mgi > 65 ? i18n[currentLang].high_risk : i18n[currentLang].low_risk;
+        updateRadar(rh, ndwi, space, mat, mgi);
     }
 
     function triggerPhoto() { document.getElementById('photo_input').click(); }
@@ -135,11 +197,14 @@
                 const ctx = canvas.getContext('2d');
                 canvas.width = img.width; canvas.height = img.height;
                 ctx.drawImage(img, 0, 0);
-                ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(20, canvas.height - 150, 450, 120);
-                ctx.fillStyle = "white"; ctx.font = "bold 40px sans-serif";
-                ctx.fillText(`MGI: ${document.getElementById('mgi-value').innerText} | RH: ${document.getElementById('rh').value}%`, 40, canvas.height - 100);
-                ctx.fillText(`${new Date().toLocaleString()}`, 40, canvas.height - 50);
-                const link = document.createElement('a'); link.download = `Report_${Date.now()}.jpg`;
+                const fs = canvas.width * 0.035;
+                ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(30, canvas.height - fs * 7, fs * 18, fs * 6);
+                ctx.fillStyle = "white"; ctx.font = `bold ${fs}px sans-serif`;
+                ctx.fillText(`MGI: ${document.getElementById('mgi-value').innerText} | RH: ${document.getElementById('rh').value}%`, 50, canvas.height - fs * 5);
+                ctx.fillText(`MAT: ${document.getElementById('mat_info').selectedOptions[0].text}`, 50, canvas.height - fs * 3.5);
+                ctx.fillText(`GEO: ${clickedCoords ? clickedCoords.lat.toFixed(4)+','+clickedCoords.lng.toFixed(4) : 'N/A'}`, 50, canvas.height - fs * 2);
+                ctx.fillText(`TIME: ${new Date().toLocaleString()}`, 50, canvas.height - fs * 0.5);
+                const link = document.createElement('a'); link.download = `BioReport_${Date.now()}.jpg`;
                 link.href = canvas.toDataURL("image/jpeg", 0.9); link.click();
             };
             img.src = event.target.result;
@@ -147,72 +212,89 @@
         reader.readAsDataURL(file);
     };
 
-    function updateRadar(rh, mgi) {
-        const ctx = document.getElementById('radarChart').getContext('2d');
-        if(radarChart) radarChart.destroy();
-        radarChart = new Chart(ctx, { type: 'radar', data: { labels: i18n[currentLang].chart, datasets: [{ data: [rh, 50, 50, 50, mgi], backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: '#3b82f6', borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { display: false } } }, plugins: { legend: { display: false } } } });
-    }
-
     async function handleAiDiagnosis() {
         const key = document.getElementById('gemini_key').value;
         const report = document.getElementById('ai-report');
-        if (!key) { report.style.display = "block"; report.innerHTML = "<b>本地診斷：</b><br>濕度已達臨界點，請加強角落通風。"; return; }
-        report.style.display = "block"; report.innerHTML = "智庫分析中...";
+        const d = i18n[currentLang];
+        report.style.display = "block";
+        if (!key) {
+            report.innerHTML = `<div class="report-sec"><span class="report-title">📊 學術風險判定</span>邊界層飽和感度高。牆面微氣候濕度可能高於中心值 10% 以上，材料進入吸濕共振期。建議強制除濕至 50% 以對抗冷橋效應。</div>`;
+            return;
+        }
+        report.innerHTML = `<div class="conn-tag" style="background:var(--accent); color:white">智庫連線中...</div>`;
         try {
-            const prompt = `分析發霉指數 MGI ${document.getElementById('mgi-value').innerText}, RH ${document.getElementById('rh').value}%. 用繁體中文提供具體建議。`;
+            const prompt = `你是一位建築物理家。數據：MGI ${document.getElementById('mgi-value').innerText}, RH ${document.getElementById('rh').value}%, PM2.5 ${document.getElementById('pm').value}. 材料：${document.getElementById('mat_info').selectedOptions[0].text}. 分析 EMC 與毛細管壓力，並給出具體執行動作。用繁體中文。`;
             const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${key}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:prompt}]}]}) });
             const res = await resp.json();
             report.innerHTML = res.candidates[0].content.parts[0].text.replace(/\n/g, "<br>");
-        } catch (e) { report.innerHTML = "API 錯誤。"; }
+        } catch (e) { report.innerHTML = "API 連線失敗。"; }
+    }
+
+    async function syncCwa() {
+        const key = document.getElementById('cwa_key').value;
+        if(!key) return alert("請填入 CWA Key");
+        try {
+            const resp = await fetch(`https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${key}`);
+            const data = await resp.json();
+            const obs = data.records.Station[0].WeatherElement;
+            document.getElementById('temp').value = obs.AirTemperature || 24;
+            document.getElementById('rh').value = obs.RelativeHumidity || 70;
+            runDiagnosis(); alert("測站同步成功！");
+        } catch (e) { alert("API 錯誤"); }
+    }
+
+    async function syncGlobal() {
+        const key = document.getElementById('global_key').value;
+        if(!key) return alert(i18n[currentLang].enter_global);
+        if(!clickedCoords) return alert(i18n[currentLang].click_map);
+        try {
+            const resp = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${clickedCoords.lat}&lon=${clickedCoords.lng}&appid=${key}&units=metric`);
+            const data = await resp.json();
+            document.getElementById('temp').value = data.main.temp;
+            document.getElementById('rh').value = data.main.humidity;
+            runDiagnosis(); alert("全球同步成功！");
+        } catch (e) { alert("API 錯誤"); }
+    }
+
+    function updateRadar(rh, ndwi, space, mat, mgi) {
+        const ctx = document.getElementById('radarChart').getContext('2d');
+        if(radarChart) radarChart.destroy();
+        radarChart = new Chart(ctx, { type: 'radar', data: { labels: i18n[currentLang].chart_labels, datasets: [{ data: [rh, ndwi*50, (2.1-space)*45, mat*50, mgi], backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: '#3b82f6', borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { display: false } } }, plugins: { legend: { display: false } } } });
     }
 
     function saveKeys() { localStorage.setItem('cwa_key', document.getElementById('cwa_key').value); localStorage.setItem('global_key', document.getElementById('global_key').value); localStorage.setItem('gemini_key', document.getElementById('gemini_key').value); }
     
-    // --- 🚨 核心：暴力解鎖 iOS 全向拖拽邏輯 ---
+    // --- 🚨 最終暴力解鎖：iPhone 16 指針全向拖拽 (與內容捲動解耦) ---
     window.onload = function() {
+        document.getElementById('cwa_key').value = localStorage.getItem('cwa_key') || "";
+        document.getElementById('global_key').value = localStorage.getItem('global_key') || "";
+        document.getElementById('gemini_key').value = localStorage.getItem('gemini_key') || "";
         changeLanguage();
-        const dashboard = document.getElementById('dashboard');
-        const handle = document.getElementById('drag_handle');
         
+        const el = document.getElementById('dashboard');
+        const handle = document.getElementById('drag_handle');
         if (window.innerWidth <= 768) {
-            let active = false;
-            let currentX, currentY, initialX, initialY;
-            let xOffset = 0, yOffset = 0;
+            let startX, startY, initialLeft, initialTop, xOffset = 0, yOffset = 0;
+            
+            handle.addEventListener('pointerdown', (e) => {
+                startX = e.clientX - xOffset;
+                startY = e.clientY - yOffset;
+                handle.setPointerCapture(e.pointerId);
+                el.style.transition = "none";
+            });
 
-            handle.addEventListener("pointerdown", dragStart);
-            document.addEventListener("pointermove", drag);
-            document.addEventListener("pointerup", dragEnd);
+            handle.addEventListener('pointermove', (e) => {
+                if (!handle.hasPointerCapture(e.pointerId)) return;
+                e.preventDefault(); 
+                xOffset = e.clientX - startX;
+                yOffset = e.clientY - startY;
+                el.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
+            });
 
-            function dragStart(e) {
-                // 鎖定 Body 捲動，防止 iOS 下拉更新或頁面滾動
-                document.body.style.overflow = "hidden";
-                initialX = e.clientX - xOffset;
-                initialY = e.clientY - yOffset;
-                if (e.target === handle) {
-                    active = true;
-                    handle.setPointerCapture(e.pointerId);
-                }
-            }
-
-            function drag(e) {
-                if (active) {
-                    e.preventDefault(); // 暴力切斷所有瀏覽器預設滑動
-                    currentX = e.clientX - initialX;
-                    currentY = e.clientY - initialY;
-                    xOffset = currentX;
-                    yOffset = currentY;
-                    // 使用 translate 代替 top/left，GPU 加速且不觸發重排
-                    dashboard.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
-                }
-            }
-
-            function dragEnd() {
-                // 還原 Body 捲動
-                document.body.style.overflow = "auto";
-                initialX = currentX;
-                initialY = currentY;
-                active = false;
-            }
+            handle.addEventListener('pointerup', (e) => {
+                handle.releasePointerCapture(e.pointerId);
+                el.style.transition = "0.3s";
+            });
         }
     };
 </script>
