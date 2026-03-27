@@ -2,7 +2,7 @@
 
 > 🚀 **[即時啟動診斷儀：點此進入](https://goati01.github.io/bio-guard/)**
 > 
-> 📖 **[技術原理手冊 (繁中)](./MANUAL.md)** | **[Technical Manual (EN)](./MANUAL_EN.md)** | **[English README](./README_EN.md)**
+> 📖 **[README (English)](./README_EN.md)** | **[技術手冊 (繁中)](./MANUAL.md)** | **[Technical Manual (EN)](./MANUAL_EN.md)**
 
 這是一款專為 2026 年建築物理巡檢設計的專業級診斷工具。本平台整合了全球權威的 **VTT 黴菌生長模型 (VTT Mold Growth Model)**，並針對亞熱帶高濕度氣候進行了「地理區域係數」與「材料敏感度」的深度校準。
 
@@ -17,31 +17,21 @@ $$
 MGI = \text{round}( (RH - 55)^{1.28} \times C_{reg} \times C_{mat} \times \text{NDWI} \times \text{Vent} \times 0.25 )
 $$
 
-> **手機版公式備案：**
-> `MGI = (RH - 55)^1.28 * Creg * Cmat * NDWI * Vent * 0.25`
+> **手機版公式備案 (Mobile Fallback):**
+> `MGI = round( (RH - 55)^1.28 * Creg * Cmat * NDWI * Vent * 0.25 )`
 
 ### 2. 關鍵係數說明
-* **地理修正 ($C_{reg}$)**：自動偵測點擊座標。針對「新竹/基隆風壓區」設定 $1.45 \sim 1.55$ 之加權。
+* **地理修正 ($C_{reg}$)**：針對「新竹/基隆風壓區」設定 $1.45 \sim 1.55$ 之加權，反映外部濕冷空氣對牆體的滲透壓力。
 * **材料敏感度 ($C_{mat}$)**：
     * **極敏感 (1.60)**：原木家具、皮革。因其具備強大吸濕平衡能力 (EMC)，極易誘發露點共振。
     * **高抗性 (0.30)**：金屬、磁磚。
 * **地脈水分 (NDWI)**：模擬地基產生的 **毛細管壓力 (Capillary Pressure)**，決定水分由地表向上侵蝕的強度。
 
 ## 🛠️ 使用說明與實戰建議
-
-### 1. 初始化與同步
-* **API 設置**：請填入您的 CWA (氣象署)、OpenWeather 或 Gemini API Key。
-* **位置鎖定**：在地圖上點擊巡檢目標，系統將自動套用該區域的地理修正係數。
-
-### 2. 診斷操作建議 (高 CP 值方針)
-* **低位除濕**：針對地脈權重高之物件，除濕機應放置於地面低處以阻斷上升水氣。
-* **熱橋阻斷**：濕冷天氣嚴禁開窗，防止室內溫暖水氣與冰冷牆角產生「共振」。
-
-## 🚀 技術堆疊
-* **GIS Engine**: Leaflet.js
-* **Visual Analytics**: Chart.js (Radar Mapping)
-* **Intelligence**: Gemini 3 Flash API (2026 Edition)
-* **Academic Model**: Modified VTT Subtropical Model
+* **位置鎖定**：在地圖上點擊巡檢目標，系統將自動套用地理修正係數。
+* **大師動作建議**：
+    * **低位除濕**：針對地脈權重高之物件，除濕機應放置於地面低處。
+    * **熱橋阻斷**：濕冷天氣嚴禁開窗，防止溫暖水氣與冰冷牆角產生「共振」。
 
 ---
 *本工具僅供建築物理研究與房屋巡檢輔助使用。*
